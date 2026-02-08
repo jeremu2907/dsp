@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <complex>
+#include <exception>
 
 #include <SoapySDR/Types.hpp>
 #include <SoapySDR/Device.hpp>
@@ -16,6 +17,8 @@ using namespace Sdr;
 
 SdrBase::SdrBase(const std::string &driver) : m_psd(std::make_unique<Dsp::PowerSpectralDensity>())
 {
+    bool found = false;
+
     SoapySDR::KwargsList kwargsList = SoapySDR::Device::enumerate();
     if (kwargsList.size() == 0)
     {
@@ -39,9 +42,17 @@ SdrBase::SdrBase(const std::string &driver) : m_psd(std::make_unique<Dsp::PowerS
                 {
                     throw std::runtime_error("Failed to create Device");
                 }
+
+                found = true;
             }
             it++;
         }
+    }
+
+    if(found == false)
+    {
+        std::string e = "No " + driver + " driver found";
+        throw std::runtime_error(e);
     }
 
     m_running.store(false);
@@ -49,7 +60,7 @@ SdrBase::SdrBase(const std::string &driver) : m_psd(std::make_unique<Dsp::PowerS
 
 SdrBase::~SdrBase()
 {
-    m_running.store(false);
+    stop();
 
     SoapySDR::Device::unmake(m_device.release());
 }
