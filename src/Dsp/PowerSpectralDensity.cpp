@@ -48,10 +48,13 @@ void PowerSpectralDensity::computeRealPsd(const std::complex<float>* fft, float*
     rotate(real);
 }
 
-void PowerSpectralDensity::toFile(float* arr)
+void PowerSpectralDensity::toFile(float* arr, double cf, double bw)
 {
     std::string temp_file = std::string(PSD_OUTPUT_FILE_NAME) + ".tmp";
     std::ofstream os(temp_file, std::ios::trunc);
+
+    os << cf << '\n';
+    os << bw << '\n';
     
     if (os.is_open())
     {

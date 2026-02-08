@@ -61,7 +61,6 @@ void LimeSdrMini2::configure(double frequency,
     m_device->setFrequency(SOAPY_SDR_RX, 0, frequency);
     m_device->setBandwidth(SOAPY_SDR_RX, 0, bandwidth);
     m_device->setSampleRate(SOAPY_SDR_RX, 0, bandwidth);
-    m_device->setAntenna(SOAPY_SDR_RX, 0, "LNAW");
 
     std::this_thread::sleep_for(std::chrono::seconds(1));
 
@@ -100,7 +99,7 @@ void LimeSdrMini2::run()
                 float psdReal[Dsp::PowerSpectralDensity::FFT_SIZE];
                 m_psd->computeRealPsd(out, psdReal, m_sampleRate);
 
-                m_psd->toFile(psdReal);
+                m_psd->toFile(psdReal, m_frequency, m_bandwidth);
 
                 // LOG(SOAPY_SDR_INFO, "ret = %d, flags = %d, time_ns = %lld\n", ret, flags, time_ns);
             }

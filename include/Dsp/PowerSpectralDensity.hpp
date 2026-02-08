@@ -15,7 +15,7 @@ namespace Dsp
         PowerSpectralDensity();
         ~PowerSpectralDensity();
 
-        static void toFile(float* arr);
+        static void toFile(float* arr, double cf, double bw);
         static void computeRealPsd(const std::complex<float>* fft, float* real, float sampleRate);
 
         void execute(std::complex<float>* in, std::complex<float>* out);

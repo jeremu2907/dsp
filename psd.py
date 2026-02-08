@@ -6,7 +6,26 @@ import time
 def read_psd_file(filename):
     try:
         with open(filename, 'r') as f:
-            content = f.read().strip()
+            lines = f.readlines()
+            
+            if len(lines) < 3:
+                return None, None, None
+            
+            # Read center frequency from first line
+            try:
+                center_freq = float(lines[0].strip())
+            except ValueError:
+                return None, None, None
+            
+            # Read bandwidth from second line
+            try:
+                bandwidth = float(lines[1].strip())
+            except ValueError:
+                return None, None, None
+            
+            # Read PSD values from third line onwards
+            content = ''.join(lines[2:]).strip()
+            
             # Remove trailing comma if present
             if content.endswith(','):
                 content = content[:-1]
@@ -22,12 +41,12 @@ def read_psd_file(filename):
                         continue
             
             if len(values) == 0:
-                return None
+                return None, None, None
                 
-            return np.array(values)
+            return center_freq, bandwidth, np.array(values)
     except Exception as e:
         # Silently ignore read errors (file being written)
-        return None
+        return None, None, None
 
 # Setup plot
 plt.ion()  # Interactive mode
@@ -39,24 +58,31 @@ filename = 'build/psd_output.txt'
 
 # Wait for valid data
 print("Waiting for data...")
-y = None
+center_freq, bandwidth, y = None, None, None
 while y is None:
-    y = read_psd_file(filename)
+    center_freq, bandwidth, y = read_psd_file(filename)
     time.sleep(0.1)
 
 n = len(y)
-x = np.arange(n)  # Bin numbers as x-axis
+
+# Calculate frequency axis (convert Hz to MHz)
+# Frequencies span from (center_freq - bandwidth/2) to (center_freq + bandwidth/2)
+freq_start_hz = center_freq - bandwidth / 2
+freq_end_hz = center_freq + bandwidth / 2
+freq_start_mhz = freq_start_hz / 1e6
+freq_end_mhz = freq_end_hz / 1e6
+x = np.linspace(freq_start_mhz, freq_end_mhz, n)
 
 # Set fixed limits
-x_min, x_max = 0, n-1
+x_min, x_max = freq_start_mhz, freq_end_mhz
 y_min = np.min(y) - 5  # Add margin
 y_max = np.max(y) + 5
 
 ax.set_xlim(x_min, x_max)
 ax.set_ylim(y_min, y_max)
-ax.set_xlabel('Bin Number')
+ax.set_xlabel('Frequency (MHz)')
 ax.set_ylabel('Power Spectral Density (dB)')
-ax.set_title('Real-time PSD Output')
+ax.set_title(f'Real-time PSD Output (Center: {center_freq/1e6:.2f} MHz, BW: {bandwidth/1e6:.2f} MHz)')
 ax.grid(True, alpha=0.3)
 
 # Initial plot
@@ -64,14 +90,30 @@ line.set_data(x, y)
 fig.canvas.draw()
 fig.canvas.flush_events()
 
-print("Plotting started. Press Ctrl+C to stop.")
+print(f"Plotting started.")
+print(f"Center Frequency: {center_freq/1e6:.2f} MHz")
+print(f"Bandwidth: {bandwidth/1e6:.2f} MHz")
+print(f"Frequency Range: {freq_start_mhz:.2f} to {freq_end_mhz:.2f} MHz")
+print("Press Ctrl+C to stop.")
 
 # Update loop
 try:
     while True:
-        y_new = read_psd_file(filename)
+        center_freq_new, bandwidth_new, y_new = read_psd_file(filename)
         
         if y_new is not None and len(y_new) == n:
+            # Check if frequency parameters changed
+            if center_freq_new != center_freq or bandwidth_new != bandwidth:
+                center_freq = center_freq_new
+                bandwidth = bandwidth_new
+                freq_start_hz = center_freq - bandwidth / 2
+                freq_end_hz = center_freq + bandwidth / 2
+                freq_start_mhz = freq_start_hz / 1e6
+                freq_end_mhz = freq_end_hz / 1e6
+                x = np.linspace(freq_start_mhz, freq_end_mhz, n)
+                ax.set_xlim(freq_start_mhz, freq_end_mhz)
+                ax.set_title(f'Real-time PSD Output (Center: {center_freq/1e6:.2f} MHz, BW: {bandwidth/1e6:.2f} MHz)')
+            
             # Update y limits if needed to capture all values
             new_y_min = np.min(y_new)
             new_y_max = np.max(y_new)
@@ -86,7 +128,7 @@ try:
             fig.canvas.draw()
             fig.canvas.flush_events()
         
-        # time.sleep(0.05)  # Update every 50ms
+        time.sleep(0.001)  # Update every 50ms
 except KeyboardInterrupt:
     print("\nStopped by user")
     plt.ioff()

@@ -12,7 +12,7 @@ int main()
     {
         double frequency = 59e6;
         double bandwidth = 30e6;
-        double gain = -12;
+        double gain = 30;
 
         limeSdr.configure(frequency, bandwidth, gain);
 
