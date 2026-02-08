@@ -1,4 +1,8 @@
-add_library(Sdr LimeSdrMini2.cpp)
+add_library(Sdr
+    SdrBase.cpp
+    LimeSdrMini2.cpp
+    RtlSdrV4.cpp
+)
 
 find_package(SoapySdr REQUIRED)
 find_package(LimeSuite REQUIRED)

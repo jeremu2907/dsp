@@ -112,6 +112,7 @@ try:
                 freq_end_mhz = freq_end_hz / 1e6
                 x = np.linspace(freq_start_mhz, freq_end_mhz, n)
                 ax.set_xlim(freq_start_mhz, freq_end_mhz)
+                ax.set_ylim(y_min, y_max)
                 ax.set_title(f'Real-time PSD Output (Center: {center_freq/1e6:.2f} MHz, BW: {bandwidth/1e6:.2f} MHz)')
             
             # Update y limits if needed to capture all values
