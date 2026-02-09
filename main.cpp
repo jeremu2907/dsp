@@ -11,7 +11,7 @@ int main()
     try
     {
         Sdr::LimeSdrMini2 sdr;
-        sdr.configure(59e6, 30e6, 30);
+        sdr.configure(460e6, 2.4e6, 25);
         sdr.run();
         std::this_thread::sleep_for(std::chrono::seconds(600));
         sdr.stop();

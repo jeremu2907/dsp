@@ -73,20 +73,35 @@ void SdrBase::configure(double frequency,
                         double gain,
                         double sampleRate)
 {
-    m_device->setGain(SOAPY_SDR_RX, 0, gain);
-    m_device->setFrequency(SOAPY_SDR_RX, 0, frequency);
-    m_device->setBandwidth(SOAPY_SDR_RX, 0, bandwidth);
-    sampleRate = sampleRate < 0 ? bandwidth : sampleRate;
-    m_device->setSampleRate(SOAPY_SDR_RX, 0, sampleRate);
+    bool configSuccess = false;
+    do
+    {
+        try
+        {
+            m_device->setGain(SOAPY_SDR_RX, 0, gain);
+            m_device->setFrequency(SOAPY_SDR_RX, 0, frequency);
+            m_device->setBandwidth(SOAPY_SDR_RX, 0, bandwidth);
+            sampleRate = sampleRate < 0 ? bandwidth : sampleRate;
+            m_device->setSampleRate(SOAPY_SDR_RX, 0, sampleRate);
 
-    m_psd->setFftSize(bandwidth);
+            m_psd->setFftSize(bandwidth);
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
-    m_gain = m_device->getGain(SOAPY_SDR_RX, 0);
-    m_frequency = m_device->getFrequency(SOAPY_SDR_RX, 0);
-    m_bandwidth = m_device->getBandwidth(SOAPY_SDR_RX, 0);
-    m_sampleRate = m_device->getBandwidth(SOAPY_SDR_RX, 0);
+            m_gain = m_device->getGain(SOAPY_SDR_RX, 0);
+            m_frequency = m_device->getFrequency(SOAPY_SDR_RX, 0);
+            m_bandwidth = m_device->getBandwidth(SOAPY_SDR_RX, 0);
+            m_sampleRate = m_device->getBandwidth(SOAPY_SDR_RX, 0);
+        }
+        catch (...)
+        {
+            configSuccess = false;
+        }
+
+        configSuccess = true;
+
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    } while (configSuccess == false);
 }
 
 void SdrBase::run()
@@ -138,7 +153,7 @@ void SdrBase::processThread()
             {
                 m_anomDet->pushSample(avgPower);
                 previousIsAnomDetReady = m_anomDet->isReady();
-                if(previousIsAnomDetReady == true)
+                if (previousIsAnomDetReady == true)
                 {
                     LOG(SOAPY_SDR_INFO, "Calibrating initial distribution completed");
                 }
