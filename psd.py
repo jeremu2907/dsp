@@ -111,9 +111,9 @@ print(f"Frequency Range: {freq_start_mhz:.2f} to {freq_end_mhz:.2f} MHz")
 print(f"FFT Bins: {n}")
 print("Press Ctrl+C to stop.")
 
-# Smoothing parameters for y-axis limits
-ALPHA = 0.1  # Smoothing factor (0.0 = no change, 1.0 = instant change)
+# Y-axis parameters
 MARGIN = 5   # Margin in dB above/below data
+EXPAND_FACTOR = 1.2  # When resizing, expand by 20% to reduce frequent resizing
 
 # Update loop
 try:
@@ -146,15 +146,27 @@ try:
             valid_y = y_new[np.isfinite(y_new)]
             
             if len(valid_y) > 0:  # Only update if we have valid data
-                # Calculate target limits based on current data
-                target_y_min = np.min(valid_y) - MARGIN
-                target_y_max = np.max(valid_y) + MARGIN
+                data_min = np.min(valid_y)
+                data_max = np.max(valid_y)
                 
-                # Smoothly interpolate towards target (exponential moving average)
-                y_min = y_min * (1 - ALPHA) + target_y_min * ALPHA
-                y_max = y_max * (1 - ALPHA) + target_y_max * ALPHA
+                # Check if data is out of current range
+                needs_resize = False
                 
-                ax.set_ylim(y_min, y_max)
+                if data_min < y_min + MARGIN:
+                    # Data below lower limit - expand downward
+                    needs_resize = True
+                    range_span = y_max - y_min
+                    y_min = data_min - MARGIN - (range_span * (EXPAND_FACTOR - 1) / 2)
+                    
+                if data_max > y_max - MARGIN:
+                    # Data above upper limit - expand upward
+                    needs_resize = True
+                    range_span = y_max - y_min
+                    y_max = data_max + MARGIN + (range_span * (EXPAND_FACTOR - 1) / 2)
+                
+                if needs_resize:
+                    ax.set_ylim(y_min, y_max)
+                    print(f"Y-axis resized: [{y_min:.1f}, {y_max:.1f}] dB")
                 
                 # Update plot
                 line.set_data(x, y_new)

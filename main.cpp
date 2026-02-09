@@ -10,8 +10,8 @@ int main()
 {
     try
     {
-        Sdr::RtlSdrV4 sdr;
-        sdr.configure(314e6, 2.4e6, 0);
+        Sdr::LimeSdrMini2 sdr;
+        sdr.configure(59e6, 30e6, 30);
         sdr.run();
         std::this_thread::sleep_for(std::chrono::seconds(600));
         sdr.stop();

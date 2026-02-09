@@ -24,8 +24,30 @@ bool AnomalyDetection::isReady() const
 bool AnomalyDetection::isAnomaly(double sample, double alpha)
 { 
     double p = 1.0f - cdf(sample);
-    std::cout << p << std::endl;
-    return (p < alpha);
+    if(p < alpha)
+    {
+        m_consecutiveHighPower = std::min(CONSECUTIVE_COUNT, m_consecutiveHighPower + 1);
+        m_consecutiveLowPower = 0;
+    }
+    else
+    {
+        m_consecutiveHighPower = 0;
+        m_consecutiveLowPower = std::min(CONSECUTIVE_COUNT, m_consecutiveLowPower + 1);
+    }
+
+    if(m_consecutiveHighPower >= CONSECUTIVE_COUNT)
+    {
+        m_anomaly = true;
+        return m_anomaly;
+    }
+
+    if(m_consecutiveLowPower >= CONSECUTIVE_COUNT)
+    {
+        m_anomaly = false;
+        return m_anomaly;
+    }
+
+    return m_anomaly;
 }
 
 void AnomalyDetection::processDistribution()

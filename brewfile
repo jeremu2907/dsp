@@ -1,0 +1,4 @@
+brew "soapysdr"
+brew "soapyrtlsdr"
+brew "limesuite"
+brew "fftw"

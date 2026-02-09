@@ -25,7 +25,7 @@ SdrBase::SdrBase(const std::string &driver) : m_psd(std::make_unique<Dsp::PowerS
     SoapySDR::KwargsList kwargsList = SoapySDR::Device::enumerate();
     if (kwargsList.size() == 0)
     {
-        throw std::runtime_error("No sdr found");
+        throw std::runtime_error("No SDR found");
     }
 
     for (auto &kwargs : kwargsList)
@@ -111,63 +111,76 @@ void SdrBase::processThread()
     std::complex<float> *out = new std::complex<float>[numElements];
     float *psdReal = new float[numElements];
 
-    bool init = true;
-    float previousPower;
-    bool high = false;
-    while (m_running.load() == true)
+    try
     {
-        void *buffs[] = {buff};
-        int flags;
-        long long time_ns;
-        m_device->readStream(rx_stream, buffs, numElements, flags, time_ns, 1e5);
-
-        m_psd->execute(buff, out);
-
-        float avgPower = static_cast<float>(m_psd->computeAvgPower(out));
-        float powerDelta = previousPower - avgPower;
-        previousPower = avgPower;
-
-        if (init == true)
+        bool init = true;
+        bool high = false;
+        bool previousIsAnomDetReady = m_anomDet->isReady();
+        while (m_running.load() == true)
         {
-            init = false;
-            continue;
-        }
+            void *buffs[] = {buff};
+            int flags;
+            long long time_ns;
+            m_device->readStream(rx_stream, buffs, numElements, flags, time_ns, 1e5);
 
-        bool isAnom = false;
-        if (m_anomDet->isReady() == false)
-        {
-            m_anomDet->pushSample(avgPower);
-            std::this_thread::sleep_for(std::chrono::milliseconds(20));
-            LOG(SOAPY_SDR_INFO, "Calibrating initial distribution...");
-        }
-        else
-        {
-            isAnom = m_anomDet->isAnomaly(avgPower);
-        }
+            m_psd->execute(buff, out);
 
-        if (isAnom == false)
-        {
-            if (high == true)
+            float avgPower = static_cast<float>(m_psd->computeAvgPower(out));
+
+            if (init == true)
             {
-                high = false;
-                LOG(SOAPY_SDR_INFO, "🔴 Anomaly Ended");
+                init = false;
+                continue;
             }
-            float avgPowerList[] = {avgPower};
-            m_psd->toFile("avg_power_output.txt", m_frequency, m_bandwidth, avgPowerList, 1);
-        }
-        else
-        {
-            if (high == false)
+
+            bool isAnom = false;
+            if (previousIsAnomDetReady == false)
             {
-                high = true;
-                LOG(SOAPY_SDR_INFO, "🔵 Anomaly Detected");
+                m_anomDet->pushSample(avgPower);
+                previousIsAnomDetReady = m_anomDet->isReady();
+                if(previousIsAnomDetReady == true)
+                {
+                    LOG(SOAPY_SDR_INFO, "Calibrating initial distribution completed");
+                }
+                std::this_thread::sleep_for(std::chrono::milliseconds(20));
+                LOG(SOAPY_SDR_DEBUG, "Calibrating initial distribution...");
             }
+            else
+            {
+                isAnom = m_anomDet->isAnomaly(avgPower);
+            }
+
+            if (isAnom == false)
+            {
+                if (high == true)
+                {
+                    high = false;
+                    LOG(SOAPY_SDR_INFO, "🔴 Anomaly Ended");
+                }
+                float avgPowerList[] = {avgPower};
+                m_psd->toFile("avg_power_output.txt", m_frequency, m_bandwidth, avgPowerList, 1);
+            }
+            else
+            {
+                if (high == false)
+                {
+                    high = true;
+                    LOG(SOAPY_SDR_INFO, "🔵 Anomaly Detected");
+                }
+            }
+
+            m_psd->computeRealPsd(out, psdReal, m_sampleRate);
+
+            m_psd->toFile("psd_output.txt", m_frequency, m_bandwidth, psdReal, numElements);
         }
-
-        m_psd->computeRealPsd(out, psdReal, m_sampleRate);
-
-        m_psd->toFile("psd_output.txt", m_frequency, m_bandwidth, psdReal, numElements);
-        // LOG(SOAPY_SDR_INFO, "ret = %d, flags = %d, time_ns = %lld\n", ret, flags, time_ns);
+    }
+    catch (...)
+    {
+        LOG(SOAPY_SDR_ERROR, "Stopping %s run thread due to ERROR", m_driver.c_str());
+        delete[] buff;
+        delete[] out;
+        delete[] psdReal;
+        throw;
     }
     LOG(SOAPY_SDR_INFO, "Stopping %s run thread", m_driver.c_str());
     delete[] buff;
