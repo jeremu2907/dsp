@@ -18,7 +18,5 @@ namespace Sdr
     {
     public:
         LimeSdrMini2();
-
-        void processThread() override;
     };
 }

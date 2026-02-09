@@ -1,5 +1,6 @@
 add_library(Dsp
     PowerSpectralDensity.cpp
+    AnomalyDetection.cpp
 )
 
 find_package(PkgConfig REQUIRED)

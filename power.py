@@ -1,0 +1,172 @@
+import matplotlib.pyplot as plt
+import numpy as np
+import time
+from collections import deque
+from scipy import stats
+
+# Maximum number of samples to keep in history
+MAX_HISTORY_SIZE = 250
+
+# Read data from file
+def read_avg_power_file(filename):
+    try:
+        with open(filename, 'r') as f:
+            lines = f.readlines()
+            
+            if len(lines) < 4:  # Now need 4 lines minimum
+                return None, None, None
+            
+            # Read center frequency from first line
+            try:
+                center_freq = float(lines[0].strip())
+            except ValueError:
+                return None, None, None
+            
+            # Read bandwidth from second line
+            try:
+                bandwidth = float(lines[1].strip())
+            except ValueError:
+                return None, None, None
+            
+            # Read size from third line (not used, but file has it)
+            try:
+                _ = int(lines[2].strip())  # Read but ignore
+            except ValueError:
+                return None, None, None
+            
+            # Read average power from fourth line (remove trailing comma if present)
+            try:
+                avg_power_str = lines[3].strip()
+                if avg_power_str.endswith(','):
+                    avg_power_str = avg_power_str[:-1]
+                avg_power = float(avg_power_str)
+            except ValueError:
+                return None, None, None
+                
+            return center_freq, bandwidth, avg_power
+    except Exception as e:
+        # Silently ignore read errors (file being written)
+        return None, None, None
+
+# Setup plot
+plt.ion()  # Interactive mode
+fig, ax = plt.subplots(figsize=(7, 3))
+
+# Initial setup
+filename = 'build/avg_power_output.txt'
+
+# Wait for valid data
+print("Waiting for data...")
+center_freq, bandwidth, avg_power = None, None, None
+while avg_power is None:
+    center_freq, bandwidth, avg_power = read_avg_power_file(filename)
+    time.sleep(0.1)
+
+# Initialize history with deque (efficient for append/pop operations)
+power_history = deque(maxlen=MAX_HISTORY_SIZE)
+power_history.append(avg_power)
+
+# Initial histogram
+n_bins = 50
+counts, bins, patches = ax.hist([avg_power], bins=n_bins, edgecolor='black', alpha=0.7, color='steelblue')
+
+ax.set_xlabel('Power (dB)')
+ax.set_ylabel('Count')
+ax.set_title(f'Power Histogram (Center: {center_freq/1e6:.2f} MHz, BW: {bandwidth/1e6:.2f} MHz, N=1)')
+ax.grid(True, alpha=0.3, axis='y')
+
+fig.canvas.draw()
+fig.canvas.flush_events()
+
+print(f"Plotting started.")
+print(f"Center Frequency: {center_freq/1e6:.2f} MHz")
+print(f"Bandwidth: {bandwidth/1e6:.2f} MHz")
+print(f"Initial Average Power: {avg_power:.2f} dB")
+print(f"History Size Limit: {MAX_HISTORY_SIZE} samples")
+print("Press Ctrl+C to stop.")
+
+# Track last read value to avoid duplicates
+last_avg_power = avg_power
+
+# Update loop
+update_counter = 0
+try:
+    while True:
+        center_freq_new, bandwidth_new, avg_power_new = read_avg_power_file(filename)
+        
+        if avg_power_new is not None:
+            # Only add if it's a new value (avoid reading same value multiple times)
+            if avg_power_new != last_avg_power:
+                power_history.append(avg_power_new)
+                last_avg_power = avg_power_new
+                
+                # Update frequency parameters if changed
+                if center_freq_new != center_freq or bandwidth_new != bandwidth:
+                    center_freq = center_freq_new
+                    bandwidth = bandwidth_new
+                
+                # Update histogram (redraw every update for smooth animation)
+                update_counter += 1
+                if update_counter % 1 == 0:  # Update every sample (can reduce for performance)
+                    # Use power values directly
+                    power_array = np.array(power_history)
+                    
+                    ax.clear()
+                    
+                    # Calculate statistics
+                    mean_power = np.mean(power_array)
+                    std_power = np.std(power_array)
+                    min_power = np.min(power_array)
+                    max_power = np.max(power_array)
+                    
+                    # Create histogram with counts (not density)
+                    counts, bins, patches = ax.hist(power_array, bins=n_bins, 
+                                                    edgecolor='black', alpha=0.7, 
+                                                    color='steelblue', density=False,
+                                                    label='Histogram')
+                    
+                    # Generate normal curve
+                    x_range = np.linspace(min_power - std_power, max_power + std_power, 200)
+                    normal_curve = stats.norm.pdf(x_range, mean_power, std_power)
+                    
+                    # Scale the normal curve to match histogram counts
+                    bin_width = bins[1] - bins[0]
+                    normal_curve_scaled = normal_curve * len(power_array) * bin_width
+                    
+                    # Plot scaled normal curve
+                    ax.plot(x_range, normal_curve_scaled, 'r-', linewidth=2.5, 
+                           label=f'Normal Distribution\n(μ={mean_power:.4f}, σ={std_power:.4f})')
+                    
+                    # Add statistics text
+                    stats_text = f'Mean: {mean_power:.4f} dB\nStd: {std_power:.4f} dB\nMin: {min_power:.4f} dB\nMax: {max_power:.4f} dB'
+                    ax.text(0.98, 0.97, stats_text, transform=ax.transAxes,
+                           verticalalignment='top', horizontalalignment='right',
+                           bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5),
+                           fontsize=10, family='monospace')
+                    
+                    # Add vertical line for mean
+                    ax.axvline(mean_power, color='darkred', linestyle='--', linewidth=2, 
+                              label=f'Mean: {mean_power:.4f} dB', alpha=0.7)
+                    
+                    ax.set_xlabel('Power (dB)')
+                    ax.set_ylabel('Count')
+                    ax.set_title(f'Power Histogram with Normal Curve (Center: {center_freq/1e6:.2f} MHz, BW: {bandwidth/1e6:.2f} MHz, N={len(power_array)})')
+                    ax.grid(True, alpha=0.3, axis='y')
+                    ax.legend(loc='upper left')
+                    
+                    fig.canvas.draw()
+                    fig.canvas.flush_events()
+        
+        time.sleep(0.01)  # Update every 10ms
+except KeyboardInterrupt:
+    print("\nStopped by user")
+    if len(power_history) > 0:
+        power_array = np.array(power_history)
+        print(f"\nFinal Statistics (Power):")
+        print(f"  Samples collected: {len(power_history)}")
+        print(f"  Mean power: {np.mean(power_array):.4f} dB")
+        print(f"  Std deviation: {np.std(power_array):.4f} dB")
+        print(f"  Min power: {np.min(power_array):.4f} dB")
+        print(f"  Max power: {np.max(power_array):.4f} dB")
+    plt.ioff()
+    plt.show()

@@ -27,7 +27,6 @@ namespace Sdr
 
         void run() override;
 
-        void processThread() override;
         void processThreadWithRoundRobin();
 
         void setFrequencies(const std::vector<double>& frequencies);

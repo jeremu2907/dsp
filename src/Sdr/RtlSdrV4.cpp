@@ -6,7 +6,9 @@
 
 #include "pch.hpp"
 #include "Sdr/RtlSdrV4.hpp"
+
 #include "Dsp/PowerSpectralDensity.hpp"
+#include "Dsp/AnomalyDetection.hpp"
 
 #define DWELL_PER_FREQUENCY_US (1.0e6 / m_frequencies.size())
 
@@ -14,45 +16,13 @@ using namespace Sdr;
 
 RtlSdrV4::RtlSdrV4() : SdrBase("rtlsdr") {}
 
-void RtlSdrV4::processThread()
-{
-    SoapySDR::Stream *rx_stream = m_device->setupStream(SOAPY_SDR_RX, SOAPY_SDR_CF32);
-    if (rx_stream == NULL)
-    {
-        throw std::runtime_error("Failed to set up stream");
-    }
-    m_device->activateStream(rx_stream, 0, 0, 0);
-    const size_t numElements = Dsp::PowerSpectralDensity::FFT_SIZE;
-    std::complex<float> buff[numElements];
-
-    while (m_running.load() == true)
-    {
-        void *buffs[] = {buff};
-        int flags;
-        long long time_ns;
-        m_device->readStream(rx_stream, buffs, numElements, flags, time_ns, 1e5);
-
-        std::complex<float> out[numElements];
-        m_psd->execute(buff, out);
-
-        float psdReal[Dsp::PowerSpectralDensity::FFT_SIZE];
-        m_psd->computeRealPsd(out, psdReal, m_sampleRate);
-
-        m_psd->toFile(psdReal, m_frequency, m_bandwidth);
-    }
-    LOG(SOAPY_SDR_INFO, "Stopping RTL-SDR v4 run thread");
-    m_device->deactivateStream(rx_stream, 0, 0);
-    m_device->closeStream(rx_stream);
-    LOG(SOAPY_SDR_INFO, "Deactivated and closed RTL-SDR v4 RX stream successfully");
-}
-
 void RtlSdrV4::processThreadWithRoundRobin()
 {
-    const size_t numElements = Dsp::PowerSpectralDensity::FFT_SIZE;
+    const size_t numElements = m_psd->getFftSize();
 
-    std::complex<float> buff[numElements];
-    std::complex<float> out[numElements];
-    float psdReal[numElements];
+    std::complex<float> *buff = new std::complex<float>[numElements];
+    std::complex<float> *out = new std::complex<float>[numElements];
+    float *psdReal = new float[numElements];
 
     SoapySDR::Stream *rx_stream = m_device->setupStream(SOAPY_SDR_RX, SOAPY_SDR_CF32);
     if (rx_stream == nullptr)
@@ -93,7 +63,7 @@ void RtlSdrV4::processThreadWithRoundRobin()
 
                 m_psd->execute(buff, out);
                 m_psd->computeRealPsd(out, psdReal, m_sampleRate);
-                m_psd->toFile(psdReal, frequency, BANDWIDTH_MHZ);
+                m_psd->toFile("psd_output.txt", frequency, BANDWIDTH_MHZ, psdReal, numElements);
             }
 
             m_device->deactivateStream(rx_stream, 0, 0);
@@ -102,6 +72,9 @@ void RtlSdrV4::processThreadWithRoundRobin()
         }
     }
 
+    delete[] buff;
+    delete[] out;
+    delete[] psdReal;
     m_device->closeStream(rx_stream);
     LOG(SOAPY_SDR_INFO, "Stopping Rtl-Sdr V4 run thread");
 }
