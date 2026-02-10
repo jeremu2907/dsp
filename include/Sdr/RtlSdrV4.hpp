@@ -1,13 +1,12 @@
 #pragma once
 
+#include <map>
 #include <vector>
 
 #include "SdrBase.hpp"
 
-namespace Dsp
-{
-    class PowerSpectralDensity;
-}
+#include "Dsp/AnomalyDetection.hpp"
+#include "Dsp/PowerSpectralDensity.hpp"
 
 namespace SoapySDR
 {
@@ -19,19 +18,20 @@ namespace Sdr
     class RtlSdrV4 : public SdrBase
     {
     public:
-        inline static const double GAIN_MHZ = 30.0e6;
-        inline static const double BANDWIDTH_MHZ = 2.4e6;
-        inline static const double SAMPLE_RATE_MHZ = 3.2e6;
+        inline static const double GAIN_HZ = 30.0e6;
+        inline static const double BANDWIDTH_HZ = 2.4e6;
+        inline static const double SAMPLE_RATE_HZ = 3.2e6;
 
         RtlSdrV4();
 
-        void run() override;
+        void processThread() override;
 
-        void processThreadWithRoundRobin();
-
-        void setFrequencies(const std::vector<double>& frequencies);
+        void setFrequencies(const std::vector<double> &frequencies);
 
     private:
         std::vector<double> m_frequencies;
+        std::map<double, Dsp::AnomalyDetection> m_anomDetMap;
+        std::map<double, Dsp::PowerSpectralDensity> m_psdMap;
+        std::map<double, bool> m_anomMap;
     };
 }

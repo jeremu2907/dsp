@@ -18,5 +18,16 @@ namespace Sdr
     {
     public:
         LimeSdrMini2();
+
+        void processThread() override;
+
+        void configure(double frequency,
+                       double bandwidth,
+                       double gain,
+                       double sampleRate = -9999) override;
+
+    private:
+        std::unique_ptr<Dsp::PowerSpectralDensity> m_psd;
+        std::unique_ptr<Dsp::AnomalyDetection> m_anomDet;
     };
 }

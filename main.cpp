@@ -10,11 +10,20 @@ int main()
 {
     try
     {
-        Sdr::LimeSdrMini2 sdr;
-        sdr.configure(460e6, 2.4e6, 25);
-        sdr.run();
-        std::this_thread::sleep_for(std::chrono::seconds(600));
-        sdr.stop();
+        Sdr::RtlSdrV4 rtlSdr;
+        rtlSdr.setFrequencies({460e6, 470e6, 480e6, 490e6, 500e6, 510e6, 520e6, 530e6, 540e6, 550e6});
+
+        Sdr::LimeSdrMini2 limeSdr;
+        limeSdr.configure(59e6, 30e6, 0);
+
+        rtlSdr.run();
+        limeSdr.run();
+
+        std::this_thread::sleep_for(std::chrono::seconds(180));
+
+        rtlSdr.stop();
+        limeSdr.stop();
+
         std::this_thread::sleep_for(std::chrono::seconds(5));
     }
     catch (std::runtime_error e)
