@@ -74,8 +74,6 @@ void LimeSdrMini2::processThread()
                     high = false;
                     LOG(SOAPY_SDR_INFO, "🔴 Anomaly Ended on LimeSdr @ %f", m_frequency);
                 }
-                float avgPowerList[] = {avgPower};
-                m_psd->toFile("avg_power_output.txt", m_frequency, m_bandwidth, avgPowerList, 1);
             }
             else
             {
@@ -85,6 +83,9 @@ void LimeSdrMini2::processThread()
                     LOG(SOAPY_SDR_INFO, "🔵 Anomaly Detected on LimeSdr @ %f", m_frequency);
                 }
             }
+
+            float avgPowerList[] = {avgPower};
+            m_psd->toFile("avg_power_output.txt", m_frequency, m_bandwidth, avgPowerList, 1);
 
             m_psd->computeRealPsd(out, psdReal, m_sampleRate);
 

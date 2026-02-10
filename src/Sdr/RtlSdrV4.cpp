@@ -88,8 +88,8 @@ void RtlSdrV4::processThread()
                             *anom = false;
                             LOG(SOAPY_SDR_INFO, "🔴 Anomaly Ended @ %f Hz", config->frequency);
                         }
-                        float avgPowerList[] = {avgPower};
-                        psd->toFile("avg_power_output.txt", m_frequency, m_bandwidth, avgPowerList, 1);
+                        // float avgPowerList[] = {avgPower};
+                        // psd->toFile("avg_power_output.txt", m_frequency, m_bandwidth, avgPowerList, 1);
                     }
                     else
                     {
@@ -100,9 +100,9 @@ void RtlSdrV4::processThread()
                         }
                     }
 
-                    psd->computeRealPsd(out, psdReal, m_sampleRate);
+                    // psd->computeRealPsd(out, psdReal, m_sampleRate);
 
-                    psd->toFile("psd_output.txt", m_frequency, m_bandwidth, psdReal, numElements);
+                    // psd->toFile("psd_output.txt", m_frequency, m_bandwidth, psdReal, numElements);
                 }
             }
 

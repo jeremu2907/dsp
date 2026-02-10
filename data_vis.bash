@@ -24,14 +24,20 @@ cleanup() {
 trap cleanup SIGINT SIGTERM
 
 # Start each script in the background
-echo "Starting power.py..."
-$PYTHON power.py &
-PID1=$!
+# echo "Starting power.py..."
+# $PYTHON power.py &
+# PID1=$!
 
-sleep 0.5
+# sleep 0.5
 
-echo "Starting power_delta.py..."
-$PYTHON power_delta.py &
+# echo "Starting power_delta.py..."
+# $PYTHON power_delta.py &
+# PID2=$!
+
+# sleep 0.5
+
+echo "Starting power_time.py..."
+$PYTHON power_time.py &
 PID2=$!
 
 sleep 0.5
