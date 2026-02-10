@@ -8,9 +8,16 @@
 #include "Dsp/AnomalyDetection.hpp"
 #include "Dsp/PowerSpectralDensity.hpp"
 
+#include "DataStructure/CircularLinkedList.hpp"
+
 namespace SoapySDR
 {
     class Device;
+}
+
+namespace Model
+{
+    struct SdrRoundRobinConfig;
 }
 
 namespace Sdr
@@ -28,10 +35,12 @@ namespace Sdr
 
         void setFrequencies(const std::vector<double> &frequencies);
 
+        void configure(double frequency,
+                       double bandwidth,
+                       double gain,
+                       double sampleRate = -9999) override;
+
     private:
-        std::vector<double> m_frequencies;
-        std::map<double, Dsp::AnomalyDetection> m_anomDetMap;
-        std::map<double, Dsp::PowerSpectralDensity> m_psdMap;
-        std::map<double, bool> m_anomMap;
+        Ds::CircularLinkedList<Model::SdrRoundRobinConfig> m_configList;
     };
 }

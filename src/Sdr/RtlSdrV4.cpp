@@ -7,18 +7,17 @@
 
 #include "pch.hpp"
 #include "Sdr/RtlSdrV4.hpp"
+#include "DataStructure/Node.hpp"
+#include "Model/SdrRoundRobinConfig.hpp"
+#include "DataStructure/CircularLinkedList.hpp"
 
 using namespace Sdr;
 
-RtlSdrV4::RtlSdrV4() : SdrBase("rtlsdr"),
-                       m_frequencies(),
-                       m_anomDetMap(),
-                       m_psdMap(),
-                       m_anomMap() {}
+RtlSdrV4::RtlSdrV4() : SdrBase("rtlsdr") {}
 
 void RtlSdrV4::processThread()
 {
-    if (m_frequencies.empty())
+    if (m_configList.empty())
     {
         LOG(SOAPY_SDR_INFO, "RTL-SDR v4 process thread empty. Exiting...");
         return;
@@ -31,13 +30,13 @@ void RtlSdrV4::processThread()
     }
     m_device->activateStream(rx_stream, 0, 0, 0);
 
-    auto it = m_frequencies.begin();
-    double frequency = *(it);
-    configure(frequency, BANDWIDTH_HZ, GAIN_HZ);
+    auto it = m_configList.current();
+    auto *config = &it->value;
+    configure(config->frequency, BANDWIDTH_HZ, GAIN_HZ);
 
-    auto *psd = &m_psdMap[frequency];
-    auto *anomDet = &m_anomDetMap[frequency];
-    auto *anom = &m_anomMap[frequency];
+    auto *psd = &config->psd;
+    auto *anomDet = &config->anomDet;
+    auto *anom = &config->anomaly;
 
     size_t numElements = psd->getFftSize();
     float *psdReal = new float[numElements];
@@ -50,7 +49,7 @@ void RtlSdrV4::processThread()
         {
             if (anomDet->isReady() == false)
             {
-                LOG(SOAPY_SDR_INFO, "Calibrating initial distribution for %f Hz", frequency);
+                LOG(SOAPY_SDR_INFO, "Calibrating initial distribution for %f Hz", config->frequency);
                 while (anomDet->isReady() == false)
                 {
                     void *buffs[] = {buff};
@@ -64,7 +63,7 @@ void RtlSdrV4::processThread()
                     anomDet->pushSample(avgPower);
                     std::this_thread::sleep_for(std::chrono::milliseconds(20));
                 }
-                LOG(SOAPY_SDR_INFO, "Calibrating initial distribution completed for %f Hz", frequency);
+                LOG(SOAPY_SDR_INFO, "Calibrating initial distribution completed for %f Hz", config->frequency);
             }
             else
             {
@@ -87,44 +86,43 @@ void RtlSdrV4::processThread()
                         if (*anom == true)
                         {
                             *anom = false;
-                            LOG(SOAPY_SDR_INFO, "🔴 Anomaly Ended @ %f Hz", frequency);
+                            LOG(SOAPY_SDR_INFO, "🔴 Anomaly Ended @ %f Hz", config->frequency);
                         }
-                        // float avgPowerList[] = {avgPower};
-                        // psd->toFile("avg_power_output.txt", m_frequency, m_bandwidth, avgPowerList, 1);
+                        float avgPowerList[] = {avgPower};
+                        psd->toFile("avg_power_output.txt", m_frequency, m_bandwidth, avgPowerList, 1);
                     }
                     else
                     {
                         if (*anom == false)
                         {
                             *anom = true;
-                            LOG(SOAPY_SDR_INFO, "🔵 Anomaly Detected @ %f Hz", frequency);
+                            LOG(SOAPY_SDR_INFO, "🔵 Anomaly Detected @ %f Hz", config->frequency);
                         }
                     }
 
-                    // psd->computeRealPsd(out, psdReal, m_sampleRate);
+                    psd->computeRealPsd(out, psdReal, m_sampleRate);
 
-                    // psd->toFile("psd_output.txt", m_frequency, m_bandwidth, psdReal, numElements);
+                    psd->toFile("psd_output.txt", m_frequency, m_bandwidth, psdReal, numElements);
                 }
             }
 
-            if (m_frequencies.size() == 1)
+            if (m_configList.size() == 1)
             {
                 continue;
             }
 
-            if (it + 1 != m_frequencies.end())
+            auto* tConfig = &m_configList.next()->value;
+
+            if(config == tConfig)
             {
-                frequency = *(++it);
+                continue;
             }
-            else
-            {
-                it = m_frequencies.begin();
-                frequency = *(it);
-            }
-            configure(frequency, BANDWIDTH_HZ, GAIN_HZ);
-            psd = &m_psdMap[frequency];
-            anom = &m_anomMap[frequency];
-            anomDet = &m_anomDetMap[frequency];
+
+            config = tConfig;
+            configure(config->frequency, BANDWIDTH_HZ, GAIN_HZ);
+            psd = &config->psd;
+            anom = &config->anomaly;
+            anomDet = &config->anomDet;
 
             size_t newNumElements = psd->getFftSize();
             if (newNumElements != numElements)
@@ -163,18 +161,22 @@ void RtlSdrV4::processThread()
 
 void RtlSdrV4::setFrequencies(const std::vector<double> &frequencies)
 {
-    m_frequencies = frequencies;
-
-    for (auto &f : m_frequencies)
+    for (auto &f : frequencies)
     {
-        auto [psdIt, inserted] = m_psdMap.emplace(
-            std::piecewise_construct,
-            std::forward_as_tuple(f),
-            std::forward_as_tuple());
-
-        psdIt->second.setFftSize(static_cast<size_t>(BANDWIDTH_HZ));
-
-        m_anomDetMap.emplace(f, Dsp::AnomalyDetection());
-        m_anomMap.emplace(f, false);
+        Model::SdrRoundRobinConfig *config = new Model::SdrRoundRobinConfig();
+        config->anomaly = false;
+        config->bandwidth = BANDWIDTH_HZ;
+        config->frequency = f;
+        m_configList.emplace(*config);
+        delete config;
     }
+}
+
+void RtlSdrV4::configure(double frequency,
+                             double bandwidth,
+                             double gain,
+                             double sampleRate)
+{
+    SdrBase::configure(frequency, bandwidth, gain, sampleRate);
+    m_configList.current()->value.psd.setFftSize(bandwidth);
 }
