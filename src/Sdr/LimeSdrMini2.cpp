@@ -1,4 +1,5 @@
 #include <thread>
+#include <chrono>
 
 #include <SoapySDR/Device.hpp>
 #include <SoapySDR/Formats.hpp>
@@ -57,6 +58,10 @@ void LimeSdrMini2::processThread()
                 previousIsAnomDetReady = m_anomDet->isReady();
                 if (previousIsAnomDetReady == true)
                 {
+                    m_anomDet->processDistribution();
+                    m_currentTimeS = std::chrono::system_clock::now();
+                    m_lastSampleCollectedS = std::chrono::system_clock::now();
+                    m_lastDistributionProcessedS = std::chrono::system_clock::now();
                     LOG(SOAPY_SDR_INFO, "Calibrating initial distribution completed");
                 }
                 std::this_thread::sleep_for(std::chrono::milliseconds(20));
@@ -74,6 +79,15 @@ void LimeSdrMini2::processThread()
                     high = false;
                     LOG(SOAPY_SDR_INFO, "🔴 Anomaly Ended on LimeSdr @ %f", m_frequency);
                 }
+
+                if (isTimeToCollectSample())
+                {
+                    m_anomDet->pushSample(avgPower);
+                }
+                if (isTimeToProcessSampleDistribution())
+                {
+                    m_anomDet->processDistribution();
+                }
             }
             else
             {
@@ -84,12 +98,10 @@ void LimeSdrMini2::processThread()
                 }
             }
 
-            float avgPowerList[] = {avgPower};
-            m_psd->toFile("avg_power_output.txt", m_frequency, m_bandwidth, avgPowerList, 1);
-
-            m_psd->computeRealPsd(out, psdReal, m_sampleRate);
-
-            m_psd->toFile("psd_output.txt", m_frequency, m_bandwidth, psdReal, numElements);
+            // float avgPowerList[] = {avgPower};
+            // m_psd->toFile("avg_power_output.txt", m_frequency, m_bandwidth, avgPowerList, 1);
+            // m_psd->computeRealPsd(out, psdReal, m_sampleRate);
+            // m_psd->toFile("psd_output.txt", m_frequency, m_bandwidth, psdReal, numElements);
         }
     }
     catch (...)

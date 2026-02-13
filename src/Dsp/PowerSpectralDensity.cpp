@@ -1,6 +1,5 @@
 #include <math.h>
 #include <fstream>
-#include <iostream>
 
 #include "Dsp/PowerSpectralDensity.hpp"
 

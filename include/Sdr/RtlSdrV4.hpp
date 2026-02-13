@@ -25,7 +25,6 @@ namespace Sdr
     class RtlSdrV4 : public SdrBase
     {
     public:
-        inline static const double GAIN_HZ = 30.0e6;
         inline static const double BANDWIDTH_HZ = 2.4e6;
         inline static const double SAMPLE_RATE_HZ = 3.2e6;
 
@@ -37,7 +36,7 @@ namespace Sdr
 
         void configure(double frequency,
                        double bandwidth,
-                       double gain,
+                       double gain = GAIN_DBI,
                        double sampleRate = -9999) override;
 
     private:
