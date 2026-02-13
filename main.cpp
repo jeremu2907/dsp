@@ -11,8 +11,8 @@ int main()
     try
     {
         Sdr::RtlSdrV4 rtlSdr;
-        rtlSdr.setFrequencies({461e6});
-        // rtlSdr.setFrequencies({460e6, 470e6, 480e6, 490e6, 500e6, 510e6, 520e6, 530e6, 540e6, 550e6});
+        // rtlSdr.setFrequencies({461e6});
+        rtlSdr.setFrequencies({460e6, 470e6, 480e6, 490e6, 500e6});
         rtlSdr.run();
 
         // Sdr::LimeSdrMini2 limeSdr;

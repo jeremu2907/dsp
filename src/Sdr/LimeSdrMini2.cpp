@@ -98,10 +98,10 @@ void LimeSdrMini2::processThread()
                 }
             }
 
-            float avgPowerList[] = {avgPower};
-            m_psd->toFile("avg_power_output.txt", m_frequency, m_bandwidth, avgPowerList, 1);
-            m_psd->computeRealPsd(out, psdReal, m_sampleRate);
-            m_psd->toFile("psd_output.txt", m_frequency, m_bandwidth, psdReal, numElements);
+            // float avgPowerList[] = {avgPower};
+            // m_psd->toFile("avg_power_output.txt", m_frequency, m_bandwidth, avgPowerList, 1);
+            // m_psd->computeRealPsd(out, psdReal, m_sampleRate);
+            // m_psd->toFile("psd_output.txt", m_frequency, m_bandwidth, psdReal, numElements);
         }
     }
     catch (...)
