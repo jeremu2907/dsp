@@ -1,6 +1,5 @@
 #include <thread>
 #include <chrono>
-#include <iostream>
 
 #include <SoapySDR/Device.hpp>
 #include <SoapySDR/Formats.hpp>
@@ -32,7 +31,7 @@ void RtlSdrV4::processThread()
 
     auto it = m_configList.current();
     auto *config = &it->value;
-    configure(config->frequency, BANDWIDTH_HZ, GAIN_HZ);
+    configure(config->frequency, BANDWIDTH_HZ, GAIN_DBI);
 
     auto *psd = &config->psd;
     auto *anomDet = &config->anomDet;
@@ -63,11 +62,14 @@ void RtlSdrV4::processThread()
                     anomDet->pushSample(avgPower);
                     std::this_thread::sleep_for(std::chrono::milliseconds(20));
                 }
+                anomDet->processDistribution();
+                m_currentTimeS = std::chrono::system_clock::now();
+                m_lastSampleCollectedS = std::chrono::system_clock::now();
+                m_lastDistributionProcessedS = std::chrono::system_clock::now();
                 LOG(SOAPY_SDR_INFO, "Calibrating initial distribution completed for %f Hz", config->frequency);
             }
             else
             {
-
                 for (size_t rep = 0; rep <= Dsp::AnomalyDetection::CONSECUTIVE_COUNT; rep++)
                 {
                     void *buffs[] = {buff};
@@ -88,8 +90,15 @@ void RtlSdrV4::processThread()
                             *anom = false;
                             LOG(SOAPY_SDR_INFO, "🔴 Anomaly Ended @ %f Hz", config->frequency);
                         }
-                        // float avgPowerList[] = {avgPower};
-                        // psd->toFile("avg_power_output.txt", m_frequency, m_bandwidth, avgPowerList, 1);
+
+                        if (isTimeToCollectSample())
+                        {
+                            anomDet->pushSample(avgPower);
+                        }
+                        if (isTimeToProcessSampleDistribution())
+                        {
+                            anomDet->processDistribution();
+                        }
                     }
                     else
                     {
@@ -100,9 +109,10 @@ void RtlSdrV4::processThread()
                         }
                     }
 
-                    // psd->computeRealPsd(out, psdReal, m_sampleRate);
-
-                    // psd->toFile("psd_output.txt", m_frequency, m_bandwidth, psdReal, numElements);
+                    float avgPowerList[] = {avgPower};
+                    psd->toFile("avg_power_output.txt", m_frequency, m_bandwidth, avgPowerList, 1);
+                    psd->computeRealPsd(out, psdReal, m_sampleRate);
+                    psd->toFile("psd_output.txt", m_frequency, m_bandwidth, psdReal, numElements);
                 }
             }
 
@@ -111,15 +121,15 @@ void RtlSdrV4::processThread()
                 continue;
             }
 
-            auto* tConfig = &m_configList.next()->value;
+            auto *tConfig = &m_configList.next()->value;
 
-            if(config == tConfig)
+            if (config == tConfig)
             {
                 continue;
             }
 
             config = tConfig;
-            configure(config->frequency, BANDWIDTH_HZ, GAIN_HZ);
+            configure(config->frequency, BANDWIDTH_HZ, GAIN_DBI);
             psd = &config->psd;
             anom = &config->anomaly;
             anomDet = &config->anomDet;
@@ -173,9 +183,9 @@ void RtlSdrV4::setFrequencies(const std::vector<double> &frequencies)
 }
 
 void RtlSdrV4::configure(double frequency,
-                             double bandwidth,
-                             double gain,
-                             double sampleRate)
+                         double bandwidth,
+                         double gain,
+                         double sampleRate)
 {
     SdrBase::configure(frequency, bandwidth, gain, sampleRate);
     m_configList.current()->value.psd.setFftSize(bandwidth);

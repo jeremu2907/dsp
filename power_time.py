@@ -147,9 +147,7 @@ try:
             fig.canvas.draw()
             fig.canvas.flush_events()
             
-            print(f"Time: {current_time:.2f}s, Power: {power_new:.2f} dB, Points: {len(powers)}")
-        
-        time.sleep(0.05)  # Poll every 50ms
+        time.sleep(0.01)  # Poll every 50ms
         
 except KeyboardInterrupt:
     print("\nStopped by user")

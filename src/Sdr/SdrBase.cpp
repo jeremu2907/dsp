@@ -107,6 +107,33 @@ void SdrBase::run()
     t.detach();
 }
 
+bool SdrBase::isTimeToCollectSample()
+{
+    m_currentTimeS = std::chrono::system_clock::now();
+    auto delta = std::chrono::duration_cast<std::chrono::milliseconds>(m_currentTimeS - m_lastSampleCollectedS);
+    if(delta.count() > TIME_BETWEEN_ROLLING_SAMPLE_COLLECT_MS)
+    {
+        m_lastSampleCollectedS = m_currentTimeS;
+        return true;
+    }
+
+    return false;
+}
+
+bool SdrBase::isTimeToProcessSampleDistribution()
+{
+    m_currentTimeS = std::chrono::system_clock::now();
+    auto delta = std::chrono::duration_cast<std::chrono::milliseconds>(m_currentTimeS - m_lastDistributionProcessedS);
+
+    if(delta.count() > TIME_BETWEEN_ROLLING_SAMPLE_DIST_PROCESS_MS)
+    {
+        m_lastDistributionProcessedS = m_currentTimeS;
+        return true;
+    }
+
+    return false;
+}
+
 void SdrBase::stop()
 {
     m_running.store(false);

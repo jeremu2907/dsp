@@ -117,6 +117,7 @@ try:
                         
                         # Calculate statistics for normal curve
                         mean_diff = np.mean(power_diffs)
+                        med_diff = np.median(power_diffs)
                         std_diff = np.std(power_diffs)
                         min_diff = np.min(power_diffs)
                         max_diff = np.max(power_diffs)
@@ -136,8 +137,8 @@ try:
                         normal_curve_scaled = normal_curve * len(power_diffs) * bin_width
                         
                         # Plot scaled normal curve
-                        ax.plot(x_range, normal_curve_scaled, 'r-', linewidth=2.5, 
-                               label=f'Normal Distribution\n(μ={mean_diff:.4f}, σ={std_diff:.4f})')
+                        # ax.plot(x_range, normal_curve_scaled, 'r-', linewidth=2.5, 
+                        #        label=f'Normal Distribution\n(μ={mean_diff:.4f}, σ={std_diff:.4f})')
                         
                         # Add statistics text for differences
                         stats_text = f'Mean: {mean_diff:.4f} dB\nStd: {std_diff:.4f} dB\nMin: {min_diff:.4f} dB\nMax: {max_diff:.4f} dB'
@@ -150,6 +151,9 @@ try:
                         ax.axvline(mean_diff, color='darkred', linestyle='--', linewidth=2, 
                                   label=f'Mean: {mean_diff:.4f} dB', alpha=0.7)
                         
+                        ax.axvline(med_diff, color='darkred', linestyle='--', linewidth=2, 
+                                  label=f'Med: {mean_diff:.4f} dB', alpha=0.7)
+                                                                                                                            
                         # Add vertical line at zero
                         ax.axvline(0, color='green', linestyle=':', linewidth=1.5, 
                                   label='Zero', alpha=0.7)
@@ -173,6 +177,7 @@ except KeyboardInterrupt:
         print(f"  Samples collected: {len(power_history)}")
         print(f"  Differences calculated: {len(power_diffs)}")
         print(f"  Mean difference: {np.mean(power_diffs):.4f} dB")
+        print(f"  Med difference: {np.median(power_diffs):.4f} dB")
         print(f"  Std deviation: {np.std(power_diffs):.4f} dB")
         print(f"  Min difference: {np.min(power_diffs):.4f} dB")
         print(f"  Max difference: {np.max(power_diffs):.4f} dB")

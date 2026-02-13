@@ -23,7 +23,7 @@ namespace Sdr
 
         void configure(double frequency,
                        double bandwidth,
-                       double gain,
+                       double gain = GAIN_DBI,
                        double sampleRate = -9999) override;
 
     private:
