@@ -76,18 +76,27 @@ void SdrBase::configure(double frequency,
     {
         try
         {
-            m_device->setGain(SOAPY_SDR_RX, 0, gain);
-            m_device->setFrequency(SOAPY_SDR_RX, 0, frequency);
-            m_device->setBandwidth(SOAPY_SDR_RX, 0, bandwidth);
+            if (m_gain != gain)
+            {
+                m_device->setGain(SOAPY_SDR_RX, 0, gain);
+                m_gain = m_device->getGain(SOAPY_SDR_RX, 0);
+            }
+
+            if (m_frequency != frequency)
+            {
+                m_device->setFrequency(SOAPY_SDR_RX, 0, frequency);
+                m_frequency = m_device->getFrequency(SOAPY_SDR_RX, 0);
+            }
+
+            if (m_bandwidth != bandwidth)
+            {
+                m_device->setBandwidth(SOAPY_SDR_RX, 0, bandwidth);
+                m_bandwidth = m_device->getBandwidth(SOAPY_SDR_RX, 0);
+            }
+
             sampleRate = sampleRate < 0 ? bandwidth : sampleRate;
             m_device->setSampleRate(SOAPY_SDR_RX, 0, sampleRate);
-
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
-
-            m_gain = m_device->getGain(SOAPY_SDR_RX, 0);
-            m_frequency = m_device->getFrequency(SOAPY_SDR_RX, 0);
-            m_bandwidth = m_device->getBandwidth(SOAPY_SDR_RX, 0);
-            m_sampleRate = m_device->getBandwidth(SOAPY_SDR_RX, 0);
+            m_sampleRate = m_device->getSampleRate(SOAPY_SDR_RX, 0);
         }
         catch (...)
         {
@@ -111,7 +120,7 @@ bool SdrBase::isTimeToCollectSample()
 {
     m_currentTimeS = std::chrono::system_clock::now();
     auto delta = std::chrono::duration_cast<std::chrono::milliseconds>(m_currentTimeS - m_lastSampleCollectedS);
-    if(delta.count() > TIME_BETWEEN_ROLLING_SAMPLE_COLLECT_MS)
+    if (delta.count() > TIME_BETWEEN_ROLLING_SAMPLE_COLLECT_MS)
     {
         m_lastSampleCollectedS = m_currentTimeS;
         return true;
@@ -125,7 +134,7 @@ bool SdrBase::isTimeToProcessSampleDistribution()
     m_currentTimeS = std::chrono::system_clock::now();
     auto delta = std::chrono::duration_cast<std::chrono::milliseconds>(m_currentTimeS - m_lastDistributionProcessedS);
 
-    if(delta.count() > TIME_BETWEEN_ROLLING_SAMPLE_DIST_PROCESS_MS)
+    if (delta.count() > TIME_BETWEEN_ROLLING_SAMPLE_DIST_PROCESS_MS)
     {
         m_lastDistributionProcessedS = m_currentTimeS;
         return true;

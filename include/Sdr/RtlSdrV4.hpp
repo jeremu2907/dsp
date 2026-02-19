@@ -13,6 +13,7 @@
 namespace SoapySDR
 {
     class Device;
+    class Stream;
 }
 
 namespace Model
