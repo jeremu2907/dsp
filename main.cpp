@@ -10,19 +10,19 @@ int main()
 {
     try
     {
-        Sdr::RtlSdrV4 rtlSdr;
+        // Sdr::RtlSdrV4 rtlSdr;
         // rtlSdr.setFrequencies({461e6});
-        rtlSdr.setFrequencies({460e6, 470e6, 480e6, 490e6, 500e6});
-        rtlSdr.run();
+        // rtlSdr.setFrequencies({460e6, 470e6, 480e6, 490e6, 500e6});
+        // rtlSdr.run();
 
-        // Sdr::LimeSdrMini2 limeSdr;
-        // limeSdr.configure(460e6, 30e6);
-        // limeSdr.run();
+        Sdr::LimeSdrMini2 limeSdr;
+        limeSdr.configure(58e6, 30e6);
+        limeSdr.run();
         
         std::this_thread::sleep_for(std::chrono::seconds(6000));
         
-        rtlSdr.stop();
-        // limeSdr.stop();
+        // rtlSdr.stop();
+        limeSdr.stop();
 
         std::this_thread::sleep_for(std::chrono::seconds(5));
     }

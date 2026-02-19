@@ -51,10 +51,10 @@ namespace Sdr
         std::atomic<bool> m_running;
         std::unique_ptr<SoapySDR::Device> m_device;
 
-        double m_gain = 0.0f;
-        double m_frequency = 0.0f;
-        double m_bandwidth = 0.0f;
-        double m_sampleRate = 0.0f;
+        double m_gain = -9999;
+        double m_frequency = -9999;
+        double m_bandwidth = -9999;
+        double m_sampleRate = -9999;
 
         std::string m_driver;
 
