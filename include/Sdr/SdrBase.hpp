@@ -29,15 +29,20 @@ namespace Sdr
 
         void stop();
 
+        void configureTx(double frequency,
+                         double bandwidth,
+                         double gain = GAIN_DBI,
+                         double sampleRate = -9999);
+
         double getGain() const;
         double getFrequency() const;
         double getBandwidth() const;
         double getSampleRate() const;
 
-        virtual void configure(double frequency,
-                               double bandwidth,
-                               double gain = GAIN_DBI,
-                               double sampleRate = -9999);
+        virtual void configureRx(double frequency,
+                                 double bandwidth,
+                                 double gain = GAIN_DBI,
+                                 double sampleRate = -9999);
 
         virtual void processThread() = 0;
 

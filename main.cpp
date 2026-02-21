@@ -1,6 +1,8 @@
 #include <cstdlib>
 #include <thread>
 
+#include <SoapySDR/Constants.h>
+
 #include "pch.hpp"
 
 #include "Sdr/RtlSdrV4.hpp"
@@ -16,7 +18,8 @@ int main()
         // rtlSdr.run();
 
         Sdr::LimeSdrMini2 limeSdr;
-        limeSdr.configure(58e6, 30e6);
+        limeSdr.setMode(SOAPY_SDR_TX);
+        limeSdr.setTxFrequencies({30e6, 35e6, 37e6, 41e6, 42e6, 44e6, 47e6, 50e6, 51e6, 52e6, 53e6, 59e6, 60e6, 66e6});
         limeSdr.run();
         
         std::this_thread::sleep_for(std::chrono::seconds(6000));

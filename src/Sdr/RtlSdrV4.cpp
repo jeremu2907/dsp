@@ -31,7 +31,7 @@ void RtlSdrV4::processThread()
 
     auto it = m_configList.current();
     auto *config = &it->value;
-    configure(config->frequency, BANDWIDTH_HZ, GAIN_DBI);
+    configureRx(config->frequency, BANDWIDTH_HZ, GAIN_DBI);
 
     auto *psd = &config->psd;
     auto *anomDet = &config->anomDet;
@@ -129,7 +129,7 @@ void RtlSdrV4::processThread()
             }
 
             config = tConfig;
-            configure(config->frequency, BANDWIDTH_HZ);
+            configureRx(config->frequency, BANDWIDTH_HZ);
             psd = &config->psd;
             anom = &config->anomaly;
             anomDet = &config->anomDet;
@@ -182,11 +182,11 @@ void RtlSdrV4::setFrequencies(const std::vector<double> &frequencies)
     }
 }
 
-void RtlSdrV4::configure(double frequency,
+void RtlSdrV4::configureRx(double frequency,
                          double bandwidth,
                          double gain,
                          double sampleRate)
 {
-    SdrBase::configure(frequency, bandwidth, gain, sampleRate);
+    SdrBase::configureRx(frequency, bandwidth, gain, sampleRate);
     m_configList.current()->value.psd.setFftSize(bandwidth);
 }

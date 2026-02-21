@@ -66,10 +66,10 @@ SdrBase::~SdrBase()
     SoapySDR::Device::unmake(m_device.release());
 }
 
-void SdrBase::configure(double frequency,
-                        double bandwidth,
-                        double gain,
-                        double sampleRate)
+void SdrBase::configureRx(double frequency,
+                          double bandwidth,
+                          double gain,
+                          double sampleRate)
 {
     bool configSuccess = false;
     do
@@ -146,6 +146,50 @@ bool SdrBase::isTimeToProcessSampleDistribution()
 void SdrBase::stop()
 {
     m_running.store(false);
+}
+
+void SdrBase::configureTx(double frequency,
+                          double bandwidth,
+                          double gain,
+                          double sampleRate)
+{
+    bool configSuccess = false;
+    do
+    {
+        try
+        {
+            if (m_gain != gain)
+            {
+                m_device->setGain(SOAPY_SDR_TX, 0, gain);
+                m_gain = m_device->getGain(SOAPY_SDR_TX, 0);
+            }
+
+            if (m_frequency != frequency)
+            {
+                m_device->setFrequency(SOAPY_SDR_TX, 0, frequency);
+                m_frequency = m_device->getFrequency(SOAPY_SDR_TX, 0);
+            }
+
+            if (m_bandwidth != bandwidth)
+            {
+                m_device->setBandwidth(SOAPY_SDR_TX, 0, bandwidth);
+                m_bandwidth = m_device->getBandwidth(SOAPY_SDR_TX, 0);
+            }
+
+            sampleRate = sampleRate < 0 ? bandwidth : sampleRate;
+            if (m_sampleRate != sampleRate)
+            {
+                m_device->setSampleRate(SOAPY_SDR_TX, 0, sampleRate);
+                m_sampleRate = m_device->getSampleRate(SOAPY_SDR_TX, 0);
+            }
+        }
+        catch (...)
+        {
+            configSuccess = false;
+        }
+
+        configSuccess = true;
+    } while (configSuccess == false);
 }
 
 double SdrBase::getGain() const

@@ -35,7 +35,7 @@ namespace Sdr
 
         void setFrequencies(const std::vector<double> &frequencies);
 
-        void configure(double frequency,
+        void configureRx(double frequency,
                        double bandwidth,
                        double gain = GAIN_DBI,
                        double sampleRate = -9999) override;
