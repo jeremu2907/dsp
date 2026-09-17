@@ -10,26 +10,30 @@ namespace Dsp
         inline static const size_t MAX_SIZE = 256;
         inline static const size_t CONSECUTIVE_COUNT = 10;
 
+        double mean() const;
         bool isReady() const;
+
         void processDistribution();
         void pushSample(double sample);
-        bool isAnomaly(double sample, double alpha = 0.05);
+        bool isAnomaly(double sample, double alpha = 0.01);
 
     private:
-        inline static const double D_THETA = 0.0001;
+        double pdf(double x,
+                   double x_0,
+                   double sigma,
+                   double nu);
 
-        static int sgn(double x);
-        static double cdf(double x, double x_0, double sigma, double lambda);
-        static double pdf(double x, double x_0, double sigma, double lambda);
-        static double mle(const std::vector<double> &samples, double x_0, double sigma);
-        static double nll(const std::vector<double> &samples, double x_0, double sigma, double lambda);
+        double cdf(double x,
+                   double x_0,
+                   double sigma,
+                   double nu);
 
         void toFile(const char *fileName);
 
         std::deque<double> m_samples;
-        double m_x0 = 0;
-        double m_sigma = 0;
-        double m_lambda = 0;
+        double m_mean = 0.0;
+        double m_sigma = 1.0;
+        double m_nu = 0.0; 
         bool m_ready = false;
         bool m_anomaly = false;
         size_t m_consecutiveHighPower = 0;

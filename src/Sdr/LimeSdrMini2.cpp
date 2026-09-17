@@ -78,6 +78,9 @@ void LimeSdrMini2::processThread()
                 {
                     high = false;
                     LOG(SOAPY_SDR_INFO, "🔴 Anomaly Ended on LimeSdr @ %f", m_frequency);
+                    LOG(SOAPY_SDR_INFO, "P_rx: %f", avgPower);
+                    LOG(SOAPY_SDR_INFO, "P_noise_mean: %f", m_anomDet->mean());
+                    LOG(SOAPY_SDR_INFO, "SNR: %f dB", 10 * log10(avgPower / m_anomDet->mean()));
                 }
 
                 if (isTimeToCollectSample())
@@ -95,6 +98,9 @@ void LimeSdrMini2::processThread()
                 {
                     high = true;
                     LOG(SOAPY_SDR_INFO, "🔵 Anomaly Detected on LimeSdr @ %f", m_frequency);
+                    LOG(SOAPY_SDR_INFO, "P_rx: %f", avgPower);
+                    LOG(SOAPY_SDR_INFO, "P_noise_mean: %f", m_anomDet->mean());
+                    LOG(SOAPY_SDR_INFO, "SNR: %f dB", 10 * log10(avgPower / m_anomDet->mean()));
                 }
             }
 

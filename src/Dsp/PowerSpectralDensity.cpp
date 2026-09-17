@@ -44,7 +44,7 @@ void PowerSpectralDensity::computeRealPsd(const std::complex<float> *fft, float 
         real[i] = std::abs(fft[i]);
         real[i] = real[i] * real[i];
         real[i] = real[i] / (static_cast<float>(m_fftSize) * sampleRate);
-        real[i] = 10.0f * log10f(real[i]);
+        real[i] = 10 * log10f(real[i]);
     }
 
     rotate(real, m_fftSize);
