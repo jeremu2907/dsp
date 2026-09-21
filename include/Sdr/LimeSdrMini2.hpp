@@ -27,6 +27,8 @@ namespace Sdr
                        double sampleRate = -9999) override;
 
     private:
+        void toFile(const char *fileName, const double rxSensitivity_dBm);
+
         std::unique_ptr<Dsp::PowerSpectralDensity> m_psd;
         std::unique_ptr<Dsp::AnomalyDetection> m_anomDet;
     };

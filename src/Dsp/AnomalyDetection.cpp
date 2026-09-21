@@ -139,11 +139,20 @@ double AnomalyDetection::cdf(double x,
     return boost::math::cdf(t, z);
 }
 
+double AnomalyDetection::mean() const
+{
+    return m_mean;
+}
+
+double AnomalyDetection::minSnrDb() const
+{
+    return 10.0 * log10((m_mean + CRITIAL_VALUE_FROM_ALPHA_AND_N_MINUS_ONE * m_sigma) / m_mean);
+}
+
 void AnomalyDetection::toFile(
     const char* fileName)
 {
-    std::string temp_file =
-        std::string(fileName) + ".tmp";
+    std::string temp_file = std::string(fileName) + ".tmp";
 
     std::ofstream os(
         temp_file,
@@ -162,9 +171,4 @@ void AnomalyDetection::toFile(
             temp_file.c_str(),
             fileName);
     }
-}
-
-double AnomalyDetection::mean() const
-{
-    return m_mean;
 }

@@ -9,13 +9,16 @@ namespace Dsp
     public:
         inline static const size_t MAX_SIZE = 256;
         inline static const size_t CONSECUTIVE_COUNT = 10;
+        inline static const double ALPHA = 0.001;
+        inline static const double CRITIAL_VALUE_FROM_ALPHA_AND_N_MINUS_ONE = 3.3291;
 
         double mean() const;
+        double minSnrDb() const;
         bool isReady() const;
 
         void processDistribution();
         void pushSample(double sample);
-        bool isAnomaly(double sample, double alpha = 0.01);
+        bool isAnomaly(double sample, double alpha = ALPHA);
 
     private:
         double pdf(double x,

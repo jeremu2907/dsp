@@ -1,5 +1,6 @@
 #include <thread>
 #include <chrono>
+#include <fstream>
 
 #include <SoapySDR/Device.hpp>
 #include <SoapySDR/Formats.hpp>
@@ -78,9 +79,6 @@ void LimeSdrMini2::processThread()
                 {
                     high = false;
                     LOG(SOAPY_SDR_INFO, "🔴 Anomaly Ended on LimeSdr @ %f", m_frequency);
-                    LOG(SOAPY_SDR_INFO, "P_rx: %f", avgPower);
-                    LOG(SOAPY_SDR_INFO, "P_noise_mean: %f", m_anomDet->mean());
-                    LOG(SOAPY_SDR_INFO, "SNR: %f dB", 10 * log10(avgPower / m_anomDet->mean()));
                 }
 
                 if (isTimeToCollectSample())
@@ -101,6 +99,11 @@ void LimeSdrMini2::processThread()
                     LOG(SOAPY_SDR_INFO, "P_rx: %f", avgPower);
                     LOG(SOAPY_SDR_INFO, "P_noise_mean: %f", m_anomDet->mean());
                     LOG(SOAPY_SDR_INFO, "SNR: %f dB", 10 * log10(avgPower / m_anomDet->mean()));
+
+                    // RxSendBm = thermal noise floor + noise figure + demodulation threshold
+                    double rxSensitivity_dBm = -174 + 10.0 * log10(m_bandwidth) + 8 + 10;
+                    LOG(SOAPY_SDR_INFO, "RxSensitivity: %f dBm", rxSensitivity_dBm);
+                    toFile("heatmap.txt", rxSensitivity_dBm);
                 }
             }
 
@@ -134,4 +137,31 @@ void LimeSdrMini2::configure(double frequency,
 {
     SdrBase::configure(frequency, bandwidth, gain, sampleRate);
     m_psd->setFftSize(bandwidth);
+}
+
+void LimeSdrMini2::toFile(const char *fileName, const double rxSensitivity_dBm)
+{
+    std::string temp_file = std::string(fileName) + ".tmp";
+
+    std::ofstream os(
+        temp_file,
+        std::ios::trunc);
+
+    if (os.is_open())
+    {
+        double thresW = pow(10, rxSensitivity_dBm / 10.0) / 1000;
+
+        os << 2 << '\n'
+           << m_frequency * 1e-6 << '\n'
+           << -97.73432690816261 << '\n'
+           << 30.274797922741364 << '\n'
+           << thresW << '\n';
+
+        os.flush();
+        os.close();
+
+        std::rename(
+            temp_file.c_str(),
+            fileName);
+    }
 }
