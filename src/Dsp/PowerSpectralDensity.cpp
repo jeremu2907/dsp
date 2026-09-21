@@ -44,7 +44,7 @@ void PowerSpectralDensity::computeRealPsd(const std::complex<float> *fft, float 
         real[i] = std::abs(fft[i]);
         real[i] = real[i] * real[i];
         real[i] = real[i] / (static_cast<float>(m_fftSize) * sampleRate);
-        real[i] = 10.0f * log10f(real[i]);
+        real[i] = 10 * log10f(real[i]);
     }
 
     rotate(real, m_fftSize);
@@ -52,8 +52,9 @@ void PowerSpectralDensity::computeRealPsd(const std::complex<float> *fft, float 
 
 void PowerSpectralDensity::setFftSize(double bandwidthHz)
 {
-    double bandwidthMhz = bandwidthHz / 1e6;
-    size_t size = pow(2, 6 + floor(log2(bandwidthMhz)));
+    // double bandwidthMhz = bandwidthHz / 1e6;
+    // size_t size = pow(2, 6 + floor(log2(bandwidthMhz)));
+    size_t size = 1024;
     m_fftSize = size;
 
     m_plan = fftwf_plan_dft_1d(m_fftSize, NULL, NULL, FFTW_FORWARD, FFTW_ESTIMATE);

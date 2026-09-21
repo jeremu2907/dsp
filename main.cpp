@@ -16,7 +16,7 @@ int main()
         // rtlSdr.run();
 
         Sdr::LimeSdrMini2 limeSdr;
-        limeSdr.configure(58e6, 30e6);
+        limeSdr.configure(460e6, 1e6);
         limeSdr.run();
         
         std::this_thread::sleep_for(std::chrono::seconds(6000));

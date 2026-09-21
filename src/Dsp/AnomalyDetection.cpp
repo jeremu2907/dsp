@@ -1,6 +1,11 @@
-#include <math.h>
+#include <algorithm>
+#include <cmath>
 #include <fstream>
 #include <iostream>
+#include <limits>
+#include <numeric>
+
+#include <boost/math/distributions/students_t.hpp>
 
 #include "Dsp/AnomalyDetection.hpp"
 
@@ -24,16 +29,24 @@ bool AnomalyDetection::isReady() const
 
 bool AnomalyDetection::isAnomaly(double sample, double alpha)
 {
-    double p = 1.0 - cdf(sample, m_x0, m_sigma, m_lambda);
+    const double p = 1.0 - cdf(sample,
+                               m_mean,
+                               m_sigma,
+                               m_nu);
+
     if (p < alpha)
     {
-        m_consecutiveHighPower = std::min(CONSECUTIVE_COUNT, m_consecutiveHighPower + 1);
+        m_consecutiveHighPower = std::min(CONSECUTIVE_COUNT,
+                                          m_consecutiveHighPower + 1);
+
         m_consecutiveLowPower = 0;
     }
     else
     {
         m_consecutiveHighPower = 0;
-        m_consecutiveLowPower = std::min(CONSECUTIVE_COUNT, m_consecutiveLowPower + 1);
+
+        m_consecutiveLowPower = std::min(CONSECUTIVE_COUNT,
+                                         m_consecutiveLowPower + 1);
     }
 
     if (m_consecutiveHighPower >= CONSECUTIVE_COUNT)
@@ -54,115 +67,108 @@ bool AnomalyDetection::isAnomaly(double sample, double alpha)
 void AnomalyDetection::processDistribution()
 {
     if (m_samples.size() < 2)
+    {
         return;
-
-    std::vector<double> distribution(m_samples.begin(), m_samples.end());
-    std::sort(distribution.begin(), distribution.end());
-
-    size_t n = distribution.size() - 1;
-    if (n % 2 == 0)
-    {
-        m_x0 = (distribution[n / 2 - 1] + distribution[n / 2]) / 2.0;
     }
-    else
+
+    std::vector<double> distribution(m_samples.begin(),
+                                     m_samples.end());
+
+    const size_t n = distribution.size();
+
+    m_mean = std::accumulate(distribution.begin(),
+                             distribution.end(),
+                             0.0) / static_cast<double>(n);
+
+    double variance = 0.0;
+
+    for (const double x : distribution)
     {
-        m_x0 = distribution[n / 2];
+        const double d = x - m_mean;
+        variance += d * d;
     }
-    size_t q1 = static_cast<size_t>(n * 0.25);
-    size_t q3 = static_cast<size_t>(n * 0.75);
-    m_sigma = (distribution[q3] - distribution[q1]) / 2.0;
 
-    m_lambda = mle(distribution, m_x0, m_sigma);
+    variance /= static_cast<double>(n - 1);
 
-    toFile("cauchy_dist.txt");
+    double sigma = std::sqrt(variance);
+
+    if (sigma <= 0.0 ||
+        !std::isfinite(sigma))
+    {
+        sigma = std::numeric_limits<double>::epsilon();
+    }
+
+    m_sigma = sigma;
+
+    m_nu = n - 1;
+
+    toFile("student_t_dist.txt");
 }
 
-double AnomalyDetection::mle(const std::vector<double> &samples, double x_0, double sigma)
+double AnomalyDetection::pdf(double x,
+                             double x_0,
+                             double sigma,
+                             double nu)
 {
-    double bestLambda = D_THETA;
-    double bestNll = std::numeric_limits<double>::infinity();
-
-    for (double lambda = -1; lambda <= 1.0 - D_THETA; lambda += D_THETA)
-    {
-        double currNll = nll(samples, x_0, sigma, lambda);
-
-        if (currNll < bestNll)
-        {
-            bestNll = currNll;
-            bestLambda = lambda;
-        }
+    if (sigma <= 0.0 || nu <= 0.0)
+    {    
+        return 0.0;
     }
 
-    return bestLambda;
+    const double z = (x - x_0) / sigma;
+
+    boost::math::students_t_distribution<double> t(nu);
+
+    return boost::math::pdf(t, z) / sigma;
 }
 
-double AnomalyDetection::nll(const std::vector<double> &samples,
-                             double x_0, double sigma, double lambda)
+double AnomalyDetection::cdf(double x,
+                             double x_0,
+                             double sigma,
+                             double nu)
 {
-    double nll = 0.0;
-    for (const auto &sample : samples)
+    if (sigma <= 0.0 || nu <= 0.0)
     {
-        double p = pdf(sample, x_0, sigma, lambda);
-        if (p <= 0.0 || !std::isfinite(p))
-        {
-            return std::numeric_limits<double>::infinity();
-        }
-        nll += -log(p);
+        return 0.0;
     }
-    return nll;
+
+    const double z = (x - x_0) / sigma;
+
+    boost::math::students_t_distribution<double> t(nu);
+
+    return boost::math::cdf(t, z);
 }
 
-double AnomalyDetection::pdf(double x, double x_0, double sigma, double lambda)
+double AnomalyDetection::mean() const
 {
-    double factor = 1.0 / (M_PI * sigma);
-    double residual = x - x_0;
-    double beta = sigma * (1.0 + lambda * sgn(residual));
-    double denominator = 1.0 + ((residual * residual) / (beta * beta));
-    return factor * (1.0 / denominator);
+    return m_mean;
 }
 
-double AnomalyDetection::cdf(double x, double x_0, double sigma, double lambda)
+double AnomalyDetection::minSnrDb() const
 {
-    double residual = x - x_0;
-    double sign = static_cast<double>(sgn(residual));
-    double constant = (1.0 - lambda) / 2.0;
-    double coefficient = (1.0 + sign*lambda) / M_PI;
-    double beta = atan(residual / (sigma * (1.0 + sign*lambda)));
-    return constant + coefficient * beta;
+    return 10.0 * log10((m_mean + CRITIAL_VALUE_FROM_ALPHA_AND_N_MINUS_ONE * m_sigma) / m_mean);
 }
 
-int AnomalyDetection::sgn(double x)
-{
-    const double epsilon = 1e-18;
-    if (x > epsilon)
-    {
-        return 1;
-    }
-    else if (x < epsilon)
-    {
-        return -1;
-    }
-    else
-    {
-        return 0;
-    }
-}
-
-void AnomalyDetection::toFile(const char *fileName)
+void AnomalyDetection::toFile(
+    const char* fileName)
 {
     std::string temp_file = std::string(fileName) + ".tmp";
-    std::ofstream os(temp_file, std::ios::trunc);
+
+    std::ofstream os(
+        temp_file,
+        std::ios::trunc);
 
     if (os.is_open())
     {
-
-        os << m_x0 << '\n'
+        os << m_mean << '\n'
            << m_sigma << '\n'
-           << m_lambda << '\n';
+           << m_nu << '\n';
 
         os.flush();
         os.close();
 
-        std::rename(temp_file.c_str(), fileName);
+        std::rename(
+            temp_file.c_str(),
+            fileName);
     }
 }
