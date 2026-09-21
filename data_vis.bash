@@ -30,8 +30,8 @@ PID1=$!
 
 sleep 0.5
 
-echo "Starting power_delta.py..."
-$PYTHON power_delta.py &
+echo "Starting heatmap.py..."
+$PYTHON heatmap.py &
 PID2=$!
 
 sleep 0.5
