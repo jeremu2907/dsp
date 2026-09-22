@@ -31,6 +31,7 @@ def read_avg_power_file(filename):
 
             if avg_power_str.endswith(','):
                 avg_power_str = avg_power_str[:-1]
+                avg_power_str = avg_power_str.split(",")[0]
 
             avg_power = float(avg_power_str)
 

@@ -11,6 +11,7 @@
 
 using namespace Dsp;
 
+
 void AnomalyDetection::pushSample(double sample)
 {
     m_samples.push_back(sample);
@@ -29,7 +30,9 @@ bool AnomalyDetection::isReady() const
 
 bool AnomalyDetection::isAnomaly(double sample, double alpha)
 {
-    const double p = 1.0 - cdf(sample,
+    m_prevFilteredSample = (1.0 - Dsp::AnomalyDetection::EMWA_ALPHA) * m_prevFilteredSample + Dsp::AnomalyDetection::EMWA_ALPHA * sample;
+
+    const double p = 1.0 - cdf(m_prevFilteredSample,
                                m_mean,
                                m_sigma,
                                m_nu);
@@ -147,6 +150,11 @@ double AnomalyDetection::mean() const
 double AnomalyDetection::minSnrDb() const
 {
     return 10.0 * log10((m_mean + CRITIAL_VALUE_FROM_ALPHA_AND_N_MINUS_ONE * m_sigma) / m_mean);
+}
+
+double AnomalyDetection::prevFilteredSample() const
+{
+    return m_prevFilteredSample;
 }
 
 void AnomalyDetection::toFile(

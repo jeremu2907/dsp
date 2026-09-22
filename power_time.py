@@ -28,16 +28,18 @@ def read_avg_power_file(filename):
             # Skip third line (not needed)
             
             # Read power value from fourth line
-            power_str = lines[3].strip()
-            if power_str.endswith(','):
-                power_str = power_str[:-1]
+            power_str_list = lines[3].strip()
+            if power_str_list.endswith(','):
+                power_str_list = power_str_list[:-1]
             
             try:
-                power = float(power_str)
+                power_list = power_str_list.split(",")
+                power = float(power_list[0])
+                power_filtered = float(power_list[1])
             except ValueError:
                 return None, None, None
             
-            return center_freq, bandwidth, power
+            return center_freq, bandwidth, power, power_filtered
     except Exception as e:
         # Silently ignore read errors (file being written)
         return None, None, None
@@ -45,16 +47,17 @@ def read_avg_power_file(filename):
 # Setup plot
 plt.ion()  # Interactive mode
 fig, ax = plt.subplots(figsize=(10, 4))
-line, = ax.plot([], [], linewidth=1.5, marker='o', markersize=2)
+line, = ax.plot([], [], linewidth=1.5, marker='o', markersize=2, label="Avg Power")
+line_filtered, = ax.plot([], [], linewidth=1.5, marker='o', markersize=2, label="Avg Power EWMA")
 
 # Initial setup
 filename = 'build/avg_power_output.txt'
 
 # Wait for valid data
 print("Waiting for data...")
-center_freq, bandwidth, power = None, None, None
+center_freq, bandwidth, power, power_filtered = None, None, None, None
 while power is None:
-    center_freq, bandwidth, power = read_avg_power_file(filename)
+    center_freq, bandwidth, power, power_filtered = read_avg_power_file(filename)
     time.sleep(0.1)
 
 print(f"Monitoring started.")
@@ -66,17 +69,20 @@ print("Press Ctrl+C to stop.")
 WINDOW_SECONDS = 10  # Keep last 10 seconds of data
 timestamps = deque()
 powers = deque()
+powers_filtered = deque()
 
 # Store initial data point
 start_time = time.time()
 timestamps.append(0)
 powers.append(power)
+powers_filtered.append(power_filtered)
 
 # Set initial plot configuration
 ax.set_xlabel('Time (seconds)')
 ax.set_ylabel('Average Power (dB)')
 ax.set_title(f'Average Power over Time (Center: {center_freq/1e6:.2f} MHz, BW: {bandwidth/1e6:.2f} MHz)')
 ax.grid(True, alpha=0.3)
+ax.legend()
 
 # Y-axis parameters
 MARGIN = 1   # Smaller margin in dB (was 5, now 1)
@@ -89,21 +95,26 @@ ax.set_ylim(y_min, y_max)
 
 # Update loop
 last_power = power  # Track last valid power to avoid duplicate points
+last_power_filtered = power_filtered
 try:
     while True:
-        center_freq_new, bandwidth_new, power_new = read_avg_power_file(filename)
+        center_freq_new, bandwidth_new, power_new, power_filtered_new = read_avg_power_file(filename)
         
-        if power_new is not None and power_new != last_power:
+        if (power_new is not None and power_new != last_power) or (power_filtered_new is not None and power_filtered_new != last_power_filtered):
             # New data point received
             current_time = time.time() - start_time
             timestamps.append(current_time)
+
             powers.append(power_new)
             last_power = power_new
+            powers_filtered.append(power_filtered_new)
+            last_power_filtered = power_filtered_new
             
             # Remove data older than WINDOW_SECONDS
             while len(timestamps) > 0 and timestamps[0] < current_time - WINDOW_SECONDS:
                 timestamps.popleft()
                 powers.popleft()
+                powers_filtered.popleft()
             
             # Check if frequency parameters changed
             if center_freq_new != center_freq or bandwidth_new != bandwidth:
@@ -115,6 +126,7 @@ try:
             # Convert deque to numpy arrays for plotting
             x_data = np.array(timestamps)
             y_data = np.array(powers)
+            y_data_filtered = np.array(powers_filtered)
             
             # Update x-axis to show 10-second window
             if len(x_data) > 0:
@@ -144,6 +156,8 @@ try:
             
             # Update plot
             line.set_data(x_data, y_data)
+            line_filtered.set_data(x_data, y_data_filtered)
+
             fig.canvas.draw()
             fig.canvas.flush_events()
             

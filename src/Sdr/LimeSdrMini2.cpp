@@ -11,6 +11,8 @@
 #include "Dsp/PowerSpectralDensity.hpp"
 #include "Dsp/AnomalyDetection.hpp"
 
+#define INIT_DISCARD_SAMPLES 1024
+
 using namespace Sdr;
 
 LimeSdrMini2::LimeSdrMini2() : SdrBase("lime"),
@@ -32,7 +34,7 @@ void LimeSdrMini2::processThread()
 
     try
     {
-        bool init = true;
+        size_t init = 0;
         bool high = false;
         bool previousIsAnomDetReady = m_anomDet->isReady();
         while (m_running.load() == true)
@@ -40,15 +42,15 @@ void LimeSdrMini2::processThread()
             void *buffs[] = {buff};
             int flags;
             long long time_ns;
+
             m_device->readStream(rx_stream, buffs, numElements, flags, time_ns, 1e5);
-
             m_psd->execute(buff, out);
-
             float avgPower = static_cast<float>(m_psd->computeAvgPower(out));
 
-            if (init == true)
+            // Initial power spike
+            if (init < INIT_DISCARD_SAMPLES)
             {
-                init = false;
+                init++;
                 continue;
             }
 
@@ -71,44 +73,44 @@ void LimeSdrMini2::processThread()
             else
             {
                 isAnom = m_anomDet->isAnomaly(avgPower);
+
+                if (isAnom == false)
+                {
+                    if (high == true)
+                    {
+                        high = false;
+                        LOG(SOAPY_SDR_INFO, "🔴 Anomaly Ended on LimeSdr @ %f", m_frequency);
+                    }
+
+                    if (isTimeToCollectSample())
+                    {
+                        m_anomDet->pushSample(avgPower);
+                    }
+                    if (isTimeToProcessSampleDistribution())
+                    {
+                        m_anomDet->processDistribution();
+                    }
+                }
+                else
+                {
+                    if (high == false)
+                    {
+                        high = true;
+                        LOG(SOAPY_SDR_INFO, "🔵 Anomaly Detected on LimeSdr @ %f", m_frequency);
+                        LOG(SOAPY_SDR_INFO, "P_rx: %f", avgPower);
+                        LOG(SOAPY_SDR_INFO, "P_noise_mean: %f", m_anomDet->mean());
+                        LOG(SOAPY_SDR_INFO, "SNR: %f dB", 10 * log10(avgPower / m_anomDet->mean()));
+                        LOG(SOAPY_SDR_INFO, "Min SNR: %f dB\n\n", m_anomDet->minSnrDb());
+
+                        // RxSendBm = thermal noise floor + noise figure + demodulation threshold
+                        // double rxSensitivity_dBm = -174 + 10.0 * log10(m_bandwidth) + 8 + 10;
+                        // toFile("heatmap.txt", rxSensitivity_dBm);
+                    }
+                }
             }
 
-            if (isAnom == false)
-            {
-                if (high == true)
-                {
-                    high = false;
-                    LOG(SOAPY_SDR_INFO, "🔴 Anomaly Ended on LimeSdr @ %f", m_frequency);
-                }
-
-                if (isTimeToCollectSample())
-                {
-                    m_anomDet->pushSample(avgPower);
-                }
-                if (isTimeToProcessSampleDistribution())
-                {
-                    m_anomDet->processDistribution();
-                }
-            }
-            else
-            {
-                if (high == false)
-                {
-                    high = true;
-                    LOG(SOAPY_SDR_INFO, "🔵 Anomaly Detected on LimeSdr @ %f", m_frequency);
-                    LOG(SOAPY_SDR_INFO, "P_rx: %f", avgPower);
-                    LOG(SOAPY_SDR_INFO, "P_noise_mean: %f", m_anomDet->mean());
-                    LOG(SOAPY_SDR_INFO, "SNR: %f dB", 10 * log10(avgPower / m_anomDet->mean()));
-
-                    // RxSendBm = thermal noise floor + noise figure + demodulation threshold
-                    double rxSensitivity_dBm = -174 + 10.0 * log10(m_bandwidth) + 8 + 10;
-                    LOG(SOAPY_SDR_INFO, "RxSensitivity: %f dBm", rxSensitivity_dBm);
-                    toFile("heatmap.txt", rxSensitivity_dBm);
-                }
-            }
-
-            float avgPowerList[] = {avgPower};
-            m_psd->toFile("avg_power_output.txt", m_frequency, m_bandwidth, avgPowerList, 1);
+            float avgPowerList[] = {avgPower, (float) m_anomDet->prevFilteredSample()};
+            m_psd->toFile("avg_power_output.txt", m_frequency, m_bandwidth, avgPowerList, 2);
             m_psd->computeRealPsd(out, psdReal, m_sampleRate);
             m_psd->toFile("psd_output.txt", m_frequency, m_bandwidth, psdReal, numElements);
         }
